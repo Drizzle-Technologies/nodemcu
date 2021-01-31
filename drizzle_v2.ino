@@ -13,9 +13,9 @@
 
 ESP8266WiFiMulti WiFiMulti;
 
-char* ssid = "Megalink_Kissia";
-char* password = "24031987";
-//"PERSONAL", "@Opers6@#", "NORTLINK_KISSIA", "25031964" , "MARIA_DELIA", "theo1623"
+char* ssid = "NORTLINK_KISSIA";
+char* password = "25031964";
+//"PERSONAL", "@Opers6@#", "Megalink_Kissia", "24031987", "MARIA_DELIA", "theo1623"
 
 //----VARIÁVEIS DO GET-----//
 String capacidadeMaxima, payload;
@@ -38,12 +38,13 @@ int feito = 0;
 //-----VARIÁVEIS DO SENSOR-----//
 int lumVal1, lumVal2;
 unsigned int occupancy = 0; //guarda o número de pessoas em cada estabelecimento
-unsigned int change_b = 0, change_a = 0; //verifica se houve mudança na variável de ocupação do estabelecimento
+unsigned int change = 0; //verifica se houve mudança na variável de ocupação do estabelecimento
 // as variaveis são unsigned long porque como o tempo tá em ms, o número fica grande demais para ser armazenado nem int
 unsigned long lastTime1 = millis();
 unsigned long lastTime2 = millis(); //variável auxiliar para controle de tempo passado
 // Set timer to 300 mili seconds (300)
 unsigned long timerDelaySensor = 300;
+unsigned long timerDelayFeito = 60000; //1 min pra falar que já pode ser feito de novo 
 
 void setup() {
 
@@ -136,11 +137,10 @@ void loop() {
         Serial.printf("[HTTPS] Unable to connect\n");
       }
     }
-    change_b = occupancy;
     sensor();
-    change_a = occupancy
     //-----INICIO DO POST-----//
-    if((change(change_b,change_a) && !feito) || (((millis() - lastTime2) < timerDelayPost) && !feito)){  //rodando a cada mudança de variável ou passada 1h
+    if((change >= 5) || (((millis() - lastTime2) < timerDelayPost) && !feito)){  //rodando a cada mudança de variável ou passada 1h
+      change = 0;
       Serial.print("[HTTPS] begin...\n");
       // configure traged server and url
       https.begin(*client, "https://inteng33.herokuapp.com/add_occupancy"); //HTTP
@@ -204,7 +204,8 @@ void sensor(){
      if (occupancy == capacidadeMaximaVetor[0]) {
       Serial.println("ESTABELECIMENTO CHEIO");
     }
-        if(lumVal1 < 200 && lumVal2 > 500){
+    if(lumVal1 < 200 && lumVal2 > 500){
+      change++;
       Serial.println(lumVal1);
       Serial.println("Entrou");
       occupancy++;
@@ -214,6 +215,7 @@ void sensor(){
       delay(1000);
     } 
     else if(lumVal2 < 200 && lumVal1 > 500){
+      change++;
       Serial.println(lumVal1);
       Serial.println("Saiu");
       occupancy--;
@@ -229,11 +231,4 @@ void sensor(){
   if((millis() - lastTime1) > timerDelaySensor*2){
     lastTime1 = millis();
   }
-}
-
-int change(unsigned int before, unsigned int after){
-    if((before - after >= 5) || (before - after <= -5)){
-        return 1;
-    }
-    else return 0;
 }
